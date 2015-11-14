@@ -1,0 +1,7 @@
+ext {
+    jackson = '2.5.4'
+}
+
+dependencies {
+    compile "com.fasterxml.jackson.core:jackson-databind:$jackson"
+}

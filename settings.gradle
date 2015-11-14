@@ -1,1 +1,5 @@
 rootProject.name = 'sd'
+
+include ':modules:runtime'
+include ':modules:api'
+include ':modules:scheduler'

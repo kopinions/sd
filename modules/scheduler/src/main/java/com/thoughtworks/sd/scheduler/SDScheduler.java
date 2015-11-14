@@ -1,22 +1,19 @@
 package com.thoughtworks.sd.scheduler;
 
 import com.google.protobuf.ByteString;
+import com.thoughtworks.sd.api.ApiModule;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
-import org.apache.mesos.Protos.*;
+import org.apache.mesos.Protos.ContainerInfo;
+import org.apache.mesos.Protos.FrameworkInfo;
+import org.apache.mesos.Protos.TaskID;
+import org.apache.mesos.Protos.TaskStatus;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
-import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.grizzly.servlet.WebappContext;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
 
-import javax.servlet.ServletRegistration;
-import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 
-import static java.util.Arrays.asList;
 
 public class SDScheduler implements Scheduler {
     private int launchedTasks;
@@ -62,7 +59,7 @@ public class SDScheduler implements Scheduler {
 
             Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
 
-            driver.launchTasks(asList(offer.getId()), asList(task), filters);
+            driver.launchTasks(Arrays.asList(offer.getId()), Arrays.asList(task), filters);
         }
     }
 
@@ -166,17 +163,8 @@ public class SDScheduler implements Scheduler {
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0], implicitAcknowledgements);
         }
 
-        WebappContext context = new WebappContext("Captcha", "/");
 
-        ServletRegistration servletRegistration = context.addServlet("ServletContainer",
-                new ServletContainer(new ResourceConfig().packages("com.thoughtworks.sd")));
-
-        servletRegistration.addMapping("/*");
-
-        HttpServer server = GrizzlyHttpServerFactory.createHttpServer(URI.create("http://0.0.0.0:8081"));
-        context.deploy(server);
-
-        server.start();
+        new ApiModule().run();
 
         int status = driver.run() == Protos.Status.DRIVER_STOPPED ? 0 : 1;
 

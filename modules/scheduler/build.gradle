@@ -1,0 +1,15 @@
+ext {
+    mesos = '0.24.1'
+}
+
+repositories {
+    maven {
+        url "http://downloads.mesosphere.io/maven"
+    }
+}
+
+dependencies {
+    compile project(":modules:api")
+
+    compile "org.apache.mesos:mesos:$mesos"
+}
