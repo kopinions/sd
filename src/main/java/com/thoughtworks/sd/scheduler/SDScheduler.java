@@ -6,7 +6,14 @@ import org.apache.mesos.Protos;
 import org.apache.mesos.Protos.*;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
+import org.glassfish.grizzly.http.server.HttpServer;
+import org.glassfish.grizzly.servlet.WebappContext;
+import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
 
+import javax.servlet.ServletRegistration;
+import java.net.URI;
 import java.util.List;
 
 import static java.util.Arrays.asList;
@@ -28,9 +35,6 @@ public class SDScheduler implements Scheduler {
     public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
         for (Protos.Offer offer : offers) {
             TaskID taskId = TaskID.newBuilder().setValue(Integer.toString(launchedTasks++)).build();
-            CommandInfo commandInfoCrawler = CommandInfo.newBuilder()
-                    .setShell(false)
-                    .build();
 
             ContainerInfo.DockerInfo.Builder dockerInfo = ContainerInfo.DockerInfo
                     .newBuilder()
@@ -40,19 +44,6 @@ public class SDScheduler implements Scheduler {
             ContainerInfo.Builder builderForValue = ContainerInfo.newBuilder()
                     .setType(ContainerInfo.Type.DOCKER)
                     .setDocker(dockerInfo.build());
-
-//            ExecutorInfo executorCrawl = ExecutorInfo.newBuilder()
-//                    .setExecutorId(Protos.ExecutorID.newBuilder().setValue("CrawlExecutor"))
-//                    .setCommand(commandInfoCrawler)
-//                    .setContainer(builderForValue
-//
-//                    )
-//                    .addResources(Protos.Resource.newBuilder().setName("cpus").setType(Protos.Value.Type.SCALAR)
-//                            .setScalar(Protos.Value.Scalar.newBuilder().setValue(0.2)))
-//                    .addResources(Protos.Resource.newBuilder().setName("mem").setType(Protos.Value.Type.SCALAR)
-//                            .setScalar(Protos.Value.Scalar.newBuilder().setValue(128)))
-//                    .setName("Crawl Executor (Java)")
-//                    .build();
 
             Protos.TaskInfo task = Protos.TaskInfo
                     .newBuilder()
@@ -175,7 +166,17 @@ public class SDScheduler implements Scheduler {
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0], implicitAcknowledgements);
         }
 
+        WebappContext context = new WebappContext("Captcha", "/");
 
+        ServletRegistration servletRegistration = context.addServlet("ServletContainer",
+                new ServletContainer(new ResourceConfig().packages("com.thoughtworks.sd")));
+
+        servletRegistration.addMapping("/*");
+
+        HttpServer server = GrizzlyHttpServerFactory.createHttpServer(URI.create("http://0.0.0.0:8081"));
+        context.deploy(server);
+
+        server.start();
 
         int status = driver.run() == Protos.Status.DRIVER_STOPPED ? 0 : 1;
 
