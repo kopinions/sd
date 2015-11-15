@@ -1,7 +1,6 @@
 ext {
     joda_time = '2.6'
     jersey = '2.22.1'
-
     mysql = '5.1.34'
 }
 

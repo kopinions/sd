@@ -4,6 +4,7 @@ allprojects {
     ext {
         slf4j = '1.7.12'
         junit = '4.12'
+        mockito = '1.10.19'
     }
 
     repositories {
@@ -15,5 +16,6 @@ subprojects {
     dependencies {
         compile "org.slf4j:slf4j-api:$slf4j"
         testCompile "junit:junit:$junit"
+        testCompile "org.mockito:mockito-all:$mockito"
     }
 }
