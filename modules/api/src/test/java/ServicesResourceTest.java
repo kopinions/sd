@@ -20,6 +20,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.glassfish.grizzly.http.util.HttpStatus.CREATED_201;
+import static org.glassfish.grizzly.http.util.HttpStatus.NOT_FOUND_404;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.eq;
@@ -55,6 +57,7 @@ public class ServicesResourceTest extends JerseyTest {
     public void setUp() throws Exception {
         super.setUp();
         when(serviceRepository.findByName(eq("mysql"))).thenReturn(Optional.of(new ServiceRecord()));
+        when(serviceRepository.findByName(eq("not_exists"))).thenReturn(Optional.empty());
         serviceData.put("name", "mysql");
         serviceData.put("uri", "");
         createServiceResult = target("/services")
@@ -64,7 +67,7 @@ public class ServicesResourceTest extends JerseyTest {
 
     @Test
     public void should_able_to_create_service() throws Exception {
-        assertThat(createServiceResult.getStatus(), is(HttpStatus.CREATED_201.getStatusCode()));
+        assertThat(createServiceResult.getStatus(), is(CREATED_201.getStatusCode()));
     }
 
     @Test
@@ -77,5 +80,14 @@ public class ServicesResourceTest extends JerseyTest {
 
         Map<String, Object> serviceData = existedService.readEntity(Map.class);
         assertThat(serviceData.get("name"), is("mysql"));
+    }
+
+    @Test
+    public void should_able_to_not_found_when_service_not_found() throws Exception {
+        Response existedService = target("/services")
+                .path("not_exists")
+                .request()
+                .get();
+        assertThat(existedService.getStatus(), is(NOT_FOUND_404.getStatusCode()));
     }
 }
