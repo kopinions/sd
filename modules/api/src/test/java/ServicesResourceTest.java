@@ -1,7 +1,5 @@
-import com.thoughtworks.sd.api.core.Service;
 import com.thoughtworks.sd.api.core.ServiceRepository;
-import com.thoughtworks.sd.api.impl.records.ServiceRecord;
-import junit.framework.TestCase;
+import com.thoughtworks.sd.api.impl.records.InMemoryServiceRepository;
 import org.glassfish.grizzly.http.util.HttpStatus;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.server.ResourceConfig;
@@ -10,7 +8,6 @@ import org.glassfish.jersey.test.TestProperties;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import javax.ws.rs.client.Entity;
@@ -18,14 +15,11 @@ import javax.ws.rs.core.Application;
 import javax.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.glassfish.grizzly.http.util.HttpStatus.CREATED_201;
 import static org.glassfish.grizzly.http.util.HttpStatus.NOT_FOUND_404;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.when;
 
 
 @RunWith(MockitoJUnitRunner.class)
@@ -34,9 +28,7 @@ public class ServicesResourceTest extends JerseyTest {
     private Response createServiceResult;
     HashMap<Object, Object> serviceData = new HashMap<>();
 
-
-    @Mock
-    ServiceRepository serviceRepository;
+    ServiceRepository serviceRepository = new InMemoryServiceRepository();
 
     @Override
     protected Application configure() {
@@ -56,8 +48,6 @@ public class ServicesResourceTest extends JerseyTest {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        when(serviceRepository.findByName(eq("mysql"))).thenReturn(Optional.of(new ServiceRecord()));
-        when(serviceRepository.findByName(eq("not_exists"))).thenReturn(Optional.empty());
         serviceData.put("name", "mysql");
         serviceData.put("uri", "");
         createServiceResult = target("/services")

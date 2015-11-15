@@ -9,6 +9,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.net.URI;
+import java.util.Map;
 import java.util.Optional;
 
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
@@ -34,7 +35,10 @@ public class ServicesResource {
     }
 
     @POST
-    public Response create() {
-        return Response.created(URI.create("")).build();
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response create(Map<String, Object> request,
+                           @Context ServiceRepository services) {
+        return Response.created(URI.create(services.create(request).getName())).build();
     }
+
 }
