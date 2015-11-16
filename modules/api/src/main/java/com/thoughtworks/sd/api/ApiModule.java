@@ -1,5 +1,7 @@
 package com.thoughtworks.sd.api;
 
+import com.thoughtworks.sd.api.core.ServiceRepository;
+import com.thoughtworks.sd.api.impl.records.InMemoryServiceRepository;
 import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.grizzly.servlet.ServletRegistration;
 import org.glassfish.grizzly.servlet.WebappContext;
@@ -12,7 +14,13 @@ import java.io.IOException;
 import java.net.URI;
 
 public class ApiModule {
+    public ServiceRepository serviceRepository ;
+
+
     public void run() throws IOException {
+        InMemoryServiceRepository inMemoryServiceRepository = new InMemoryServiceRepository();
+        inMemoryServiceRepository.mesosDnsEntryPoint = "http://192.168.50.4:8123";
+        serviceRepository = inMemoryServiceRepository;
         WebappContext context = new WebappContext("Services API", "/");
 
         ResourceConfig packages = new ResourceConfig()
@@ -20,10 +28,10 @@ public class ApiModule {
                 .register(new AbstractBinder() {
                     @Override
                     protected void configure() {
-
+                        bind("http://192.168.50.4:8123").to(String.class).named("mesos-dns");
+                        bind(serviceRepository).to(ServiceRepository.class);
                     }
-                })
-                ;
+                });
 
         ServletRegistration servletRegistration = context.addServlet("ServletContainer",
                 new ServletContainer(packages));

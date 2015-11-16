@@ -13,6 +13,10 @@ import org.apache.mesos.SchedulerDriver;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+import static java.util.Arrays.asList;
 
 
 public class SDScheduler implements Scheduler {
@@ -30,36 +34,82 @@ public class SDScheduler implements Scheduler {
 
     @Override
     public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
+
         for (Protos.Offer offer : offers) {
-            TaskID taskId = TaskID.newBuilder().setValue(Integer.toString(launchedTasks++)).build();
+            if (launchedTasks < 2) {
+                launchedTasks++;
+                Protos.Resource cpu = offer.getResourcesList().stream()
+                        .filter(r -> Objects.equals(r.getName(), "cpus")).findFirst().get();
+                if (cpu.getScalar().getValue() < 1) {
+                    continue;
+                }
 
-            ContainerInfo.DockerInfo.Builder dockerInfo = ContainerInfo.DockerInfo
-                    .newBuilder()
-                    .setImage("localhost:5000/myfirstimage")
-                    .setNetwork(ContainerInfo.DockerInfo.Network.HOST);
 
-            ContainerInfo.Builder builderForValue = ContainerInfo.newBuilder()
-                    .setType(ContainerInfo.Type.DOCKER)
-                    .setDocker(dockerInfo.build());
+                Protos.Resource memory = offer.getResourcesList().stream()
+                        .filter(r -> Objects.equals(r.getName(), "mem")).findFirst().get();
 
-            Protos.TaskInfo task = Protos.TaskInfo
-                    .newBuilder()
-                    .setName("task " + taskId.getValue())
-                    .setTaskId(taskId)
-                    .setSlaveId(offer.getSlaveId())
-                    .addResources(
-                            Protos.Resource.newBuilder().setName("cpus").setType(Protos.Value.Type.SCALAR)
-                                    .setScalar(Protos.Value.Scalar.newBuilder().setValue(0.2)))
-                    .addResources(
-                            Protos.Resource.newBuilder().setName("mem").setType(Protos.Value.Type.SCALAR)
-                                    .setScalar(Protos.Value.Scalar.newBuilder().setValue(128)))
-                    .setCommand(Protos.CommandInfo.newBuilder().setUser("root").setShell(false).build())
-                    .setContainer(builderForValue)
-                    .build();
+                if (memory.getScalar().getValue() < 500) {
+                    continue;
+                }
 
-            Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
+                Protos.Resource disk = offer.getResourcesList().stream()
+                        .filter(r -> Objects.equals(r.getName(), "disk")).findFirst().get();
 
-            driver.launchTasks(Arrays.asList(offer.getId()), Arrays.asList(task), filters);
+                if (disk.getScalar().getValue() < 1024) {
+                    continue;
+                }
+
+                Protos.Resource resource = offer.getResourcesList().stream()
+                        .filter(Protos.Resource::hasRanges).findFirst().get();
+                Protos.Value.Ranges ranges = resource.getRanges();
+                TaskID taskId = TaskID.newBuilder().setValue(Integer.toString(launchedTasks)).build();
+
+                long begin = ranges.getRange(0).getBegin();
+                ContainerInfo.DockerInfo.Builder dockerInfo = ContainerInfo.DockerInfo
+                        .newBuilder()
+                        .setImage("mysql")
+                        .setNetwork(ContainerInfo.DockerInfo.Network.BRIDGE)
+                        .addPortMappings(0, ContainerInfo.DockerInfo.PortMapping.newBuilder().setContainerPort(3306)
+                                .setProtocol("tcp").setHostPort((int) begin));
+
+                ContainerInfo.Builder builderForValue = ContainerInfo.newBuilder()
+                        .setType(ContainerInfo.Type.DOCKER)
+                        .setDocker(dockerInfo.build());
+
+                Protos.TaskInfo task = Protos.TaskInfo
+                        .newBuilder()
+                        .setName("mysql")
+                        .setTaskId(taskId)
+                        .setSlaveId(offer.getSlaveId())
+                        .addResources(
+                                Protos.Resource.newBuilder().setName("cpus").setType(Protos.Value.Type.SCALAR)
+                                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(1)))
+                        .addResources(
+                                Protos.Resource.newBuilder().setName("mem").setType(Protos.Value.Type.SCALAR)
+                                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(500)))
+                        .addResources(
+                                Protos.Resource.newBuilder().setName("disk").setType(Protos.Value.Type.SCALAR)
+                                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(2000)))
+                        .addResources(Protos.Resource.newBuilder()
+                                        .setName("ports")
+                                        .setType(Protos.Value.Type.RANGES)
+                                        .setRanges(Protos.Value.Ranges.newBuilder().addRange(Protos.Value.Range.newBuilder().setBegin(ranges.getRange(0).getBegin()).setEnd(ranges.getRange(0).getBegin())))
+                        )
+                        .setCommand(Protos.CommandInfo.newBuilder().setUser("root").setShell(false)
+                                .setEnvironment(Protos.Environment.newBuilder().addVariables(Protos.Environment.Variable.newBuilder().setName("MYSQL_ROOT_PASSWORD").setValue("password")))
+                                .build())
+                        .setContainer(builderForValue)
+                        .setDiscovery(Protos.DiscoveryInfo.newBuilder()
+                                        .setVisibility(Protos.DiscoveryInfo.Visibility.EXTERNAL)
+                        )
+                        .build();
+
+                Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
+
+                driver.launchTasks(asList(offer.getId()), asList(task), filters);
+            } else {
+                driver.declineOffer(offer.getId());
+            }
         }
     }
 
@@ -117,7 +167,7 @@ public class SDScheduler implements Scheduler {
 
         FrameworkInfo.Builder frameworkBuilder = FrameworkInfo.newBuilder()
                 .setUser("")
-                .setName("Test Framework (Java)");
+                .setName("servicedashboard");
 
         if (System.getenv("MESOS_CHECKPOINT") != null) {
             System.out.println("Enabling checkpoint for the framework");
@@ -130,6 +180,9 @@ public class SDScheduler implements Scheduler {
             System.out.println("Enabling explicit acknowledgements for status updates");
             implicitAcknowledgements = false;
         }
+
+        ApiModule apiModule = new ApiModule();
+        apiModule.run();
 
         Scheduler scheduler = new SDScheduler();
 
@@ -158,13 +211,13 @@ public class SDScheduler implements Scheduler {
                     implicitAcknowledgements,
                     credentialBuilder.build());
         } else {
-            frameworkBuilder.setPrincipal("test-framework-java");
+            frameworkBuilder.setPrincipal("servicedashboard");
 
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0], implicitAcknowledgements);
         }
 
 
-        new ApiModule().run();
+
 
         int status = driver.run() == Protos.Status.DRIVER_STOPPED ? 0 : 1;
 
