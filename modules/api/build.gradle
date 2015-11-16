@@ -2,10 +2,13 @@ ext {
     joda_time = '2.6'
     jersey = '2.22.1'
     mysql = '5.1.34'
+    mesos = '0.24.1'
 }
 
 dependencies {
     compile "mysql:mysql-connector-java:$mysql"
+
+    compile "org.apache.mesos:mesos:$mesos"
 
     compile "joda-time:joda-time:$joda_time"
     compile "org.glassfish.jersey.core:jersey-server:$jersey"

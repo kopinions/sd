@@ -2,29 +2,31 @@ package com.thoughtworks.sd.scheduler;
 
 import com.google.protobuf.ByteString;
 import com.thoughtworks.sd.api.ApiModule;
+import com.thoughtworks.sd.api.MesosDriverHolder;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
-import org.apache.mesos.Protos.ContainerInfo;
 import org.apache.mesos.Protos.FrameworkInfo;
-import org.apache.mesos.Protos.TaskID;
 import org.apache.mesos.Protos.TaskStatus;
 import org.apache.mesos.Scheduler;
 import org.apache.mesos.SchedulerDriver;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-
-import static java.util.Arrays.asList;
 
 
 public class SDScheduler implements Scheduler {
-    private int launchedTasks;
+    private OfferProcessor offerProcessor;
+    private MesosDriverHolder holder;
+    public static SchedulerDriver driver;
+
+    public SDScheduler(OfferProcessor offerProcessor, MesosDriverHolder holder) {
+        this.offerProcessor = offerProcessor;
+    }
 
     @Override
     public void registered(SchedulerDriver driver, Protos.FrameworkID frameworkId, Protos.MasterInfo masterInfo) {
         System.out.println("registered");
+        MesosDriverHolder.driver = driver;
+
     }
 
     @Override
@@ -34,82 +36,8 @@ public class SDScheduler implements Scheduler {
 
     @Override
     public void resourceOffers(SchedulerDriver driver, List<Protos.Offer> offers) {
-
         for (Protos.Offer offer : offers) {
-            if (launchedTasks < 2) {
-                launchedTasks++;
-                Protos.Resource cpu = offer.getResourcesList().stream()
-                        .filter(r -> Objects.equals(r.getName(), "cpus")).findFirst().get();
-                if (cpu.getScalar().getValue() < 1) {
-                    continue;
-                }
-
-
-                Protos.Resource memory = offer.getResourcesList().stream()
-                        .filter(r -> Objects.equals(r.getName(), "mem")).findFirst().get();
-
-                if (memory.getScalar().getValue() < 500) {
-                    continue;
-                }
-
-                Protos.Resource disk = offer.getResourcesList().stream()
-                        .filter(r -> Objects.equals(r.getName(), "disk")).findFirst().get();
-
-                if (disk.getScalar().getValue() < 1024) {
-                    continue;
-                }
-
-                Protos.Resource resource = offer.getResourcesList().stream()
-                        .filter(Protos.Resource::hasRanges).findFirst().get();
-                Protos.Value.Ranges ranges = resource.getRanges();
-                TaskID taskId = TaskID.newBuilder().setValue(Integer.toString(launchedTasks)).build();
-
-                long begin = ranges.getRange(0).getBegin();
-                ContainerInfo.DockerInfo.Builder dockerInfo = ContainerInfo.DockerInfo
-                        .newBuilder()
-                        .setImage("mysql")
-                        .setNetwork(ContainerInfo.DockerInfo.Network.BRIDGE)
-                        .addPortMappings(0, ContainerInfo.DockerInfo.PortMapping.newBuilder().setContainerPort(3306)
-                                .setProtocol("tcp").setHostPort((int) begin));
-
-                ContainerInfo.Builder builderForValue = ContainerInfo.newBuilder()
-                        .setType(ContainerInfo.Type.DOCKER)
-                        .setDocker(dockerInfo.build());
-
-                Protos.TaskInfo task = Protos.TaskInfo
-                        .newBuilder()
-                        .setName("mysql")
-                        .setTaskId(taskId)
-                        .setSlaveId(offer.getSlaveId())
-                        .addResources(
-                                Protos.Resource.newBuilder().setName("cpus").setType(Protos.Value.Type.SCALAR)
-                                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(1)))
-                        .addResources(
-                                Protos.Resource.newBuilder().setName("mem").setType(Protos.Value.Type.SCALAR)
-                                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(500)))
-                        .addResources(
-                                Protos.Resource.newBuilder().setName("disk").setType(Protos.Value.Type.SCALAR)
-                                        .setScalar(Protos.Value.Scalar.newBuilder().setValue(2000)))
-                        .addResources(Protos.Resource.newBuilder()
-                                        .setName("ports")
-                                        .setType(Protos.Value.Type.RANGES)
-                                        .setRanges(Protos.Value.Ranges.newBuilder().addRange(Protos.Value.Range.newBuilder().setBegin(ranges.getRange(0).getBegin()).setEnd(ranges.getRange(0).getBegin())))
-                        )
-                        .setCommand(Protos.CommandInfo.newBuilder().setUser("root").setShell(false)
-                                .setEnvironment(Protos.Environment.newBuilder().addVariables(Protos.Environment.Variable.newBuilder().setName("MYSQL_ROOT_PASSWORD").setValue("password")))
-                                .build())
-                        .setContainer(builderForValue)
-                        .setDiscovery(Protos.DiscoveryInfo.newBuilder()
-                                        .setVisibility(Protos.DiscoveryInfo.Visibility.EXTERNAL)
-                        )
-                        .build();
-
-                Protos.Filters filters = Protos.Filters.newBuilder().setRefuseSeconds(1).build();
-
-                driver.launchTasks(asList(offer.getId()), asList(task), filters);
-            } else {
-                driver.declineOffer(offer.getId());
-            }
+            offerProcessor.process(driver, offer);
         }
     }
 
@@ -181,10 +109,11 @@ public class SDScheduler implements Scheduler {
             implicitAcknowledgements = false;
         }
 
-        ApiModule apiModule = new ApiModule();
+        MesosDriverHolder mesosDriverHolder = new MesosDriverHolder();
+        ApiModule apiModule = new ApiModule(mesosDriverHolder);
         apiModule.run();
 
-        Scheduler scheduler = new SDScheduler();
+        Scheduler scheduler = new SDScheduler(new OfferProcessor(), mesosDriverHolder);
 
         MesosSchedulerDriver driver;
         if (System.getenv("MESOS_AUTHENTICATE") != null) {

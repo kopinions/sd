@@ -15,6 +15,12 @@ import java.net.URI;
 
 public class ApiModule {
     public ServiceRepository serviceRepository ;
+    private MesosDriverHolder mesosDriverHolder;
+
+    public ApiModule(MesosDriverHolder mesosDriverHolder) {
+
+        this.mesosDriverHolder = mesosDriverHolder;
+    }
 
 
     public void run() throws IOException {
@@ -30,6 +36,7 @@ public class ApiModule {
                     protected void configure() {
                         bind("http://192.168.50.4:8123").to(String.class).named("mesos-dns");
                         bind(serviceRepository).to(ServiceRepository.class);
+                        bind(mesosDriverHolder).to(MesosDriverHolder.class);
                     }
                 });
 

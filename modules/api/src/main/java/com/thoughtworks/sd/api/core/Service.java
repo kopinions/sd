@@ -5,7 +5,11 @@ public interface Service {
 
     void start();
 
+    void delete();
+
+    boolean isRunning();
+
     enum Status {
-        RUNNING
+        DELETED, NEW, RUNNING
     }
 }

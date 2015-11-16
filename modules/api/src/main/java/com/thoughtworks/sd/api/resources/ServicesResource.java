@@ -41,4 +41,17 @@ public class ServicesResource {
         return Response.created(URI.create(services.create(request).getName())).build();
     }
 
+    @DELETE
+    @Path("{sn}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response delete(@PathParam("sn") String name,
+                           @Context ServiceRepository serviceRepository) {
+        Optional<Service> service = serviceRepository.findByName(name);
+        return service
+                .map(s -> {
+                    s.delete();
+                    return ok().build();
+                })
+                .orElse(status(NOT_FOUND).build());
+    }
 }

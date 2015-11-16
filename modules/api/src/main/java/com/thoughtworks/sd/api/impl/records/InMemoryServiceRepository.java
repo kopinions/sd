@@ -1,5 +1,6 @@
 package com.thoughtworks.sd.api.impl.records;
 
+import com.thoughtworks.sd.api.MesosDriverHolder;
 import com.thoughtworks.sd.api.core.Service;
 import com.thoughtworks.sd.api.core.ServiceRepository;
 import org.glassfish.jersey.filter.LoggingFilter;
@@ -20,31 +21,54 @@ public class InMemoryServiceRepository implements ServiceRepository {
     @Inject
     public String mesosDnsEntryPoint;
 
+    @Inject
+    public MesosDriverHolder driverHolder;
+
     @Override
 
     public Optional<Service> findByName(String name) {
-        return Optional.ofNullable(services.get(name));
+        Service value = services.get(name);
+        if ((!value.isRunning())) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(value);
     }
 
     @Override
     public Service create(Map<String, Object> data) {
-
-        Client client = ClientBuilder.newClient();
-        client.register(new LoggingFilter(Logger.getLogger("INmeme"), true));
-        Response name = client.target(mesosDnsEntryPoint + "/v1/services/_" + String.valueOf(data.get("name")) + "._tcp.servicedashboard.mesos").request().get();
-        List<Map<String, Object>> bindings = name.readEntity(List.class);
-        Map<String, Object> stringObjectMap = bindings.get(0);
         HashMap<String, Object> serviceData = new HashMap<>();
-        serviceData.put("name", String.valueOf(data.get("name")));
+        Map<String, Object> stringObjectMap = getServiceInfo(data);
+//        Map<String, Object> stringObjectMap = fakegetServiceInfo(data);
+
         serviceData.put("port", stringObjectMap.get("port"));
         serviceData.put("host", stringObjectMap.get("host"));
         serviceData.put("ip", stringObjectMap.get("ip"));
+        serviceData.put("uri", "jdbc:mysql://" + stringObjectMap.get("host") + ":" + stringObjectMap.get("port") + "/mysql?" + "user=root&password=password");
+
         serviceData.put("credential", new HashMap<String, Object>() {{
             put("password", "password");
             put("username", "root");
         }});
+        serviceData.put("name", String.valueOf(data.get("name")));
         ServiceRecord serviceRecord = new ServiceRecord(serviceData);
         services.put(String.valueOf(data.get("name")), serviceRecord);
         return serviceRecord;
+    }
+
+    private Map<String, Object> fakegetServiceInfo(Map<String, Object> data) {
+        return new HashMap<String, Object>(){{
+            put("port", 111);
+            put("host", "xxx");
+            put("ip", "xxx");
+        }};
+
+    }
+
+    private Map<String, Object> getServiceInfo(Map<String, Object> data) {
+        Client client = ClientBuilder.newClient();
+        client.register(new LoggingFilter(Logger.getLogger("INmeme"), true));
+        Response name = client.target(mesosDnsEntryPoint + "/v1/services/_" + String.valueOf(data.get("name")) + "._tcp.servicedashboard.mesos").request().get();
+        List<Map<String, Object>> bindings = name.readEntity(List.class);
+        return bindings.get(0);
     }
 }

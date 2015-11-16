@@ -22,6 +22,7 @@ public class ServiceRecord implements Record, Service {
         host = String.valueOf(data.get("host"));
         ip = String.valueOf(data.get("ip"));
         credential = (Map<String, Object>) data.get("credential");
+        status = Status.RUNNING;
     }
 
     @Override
@@ -44,5 +45,15 @@ public class ServiceRecord implements Record, Service {
     @Override
     public void start() {
         this.status = Status.RUNNING;
+    }
+
+    @Override
+    public void delete() {
+        status = Status.DELETED;
+    }
+
+    @Override
+    public boolean isRunning() {
+        return status == Status.RUNNING;
     }
 }

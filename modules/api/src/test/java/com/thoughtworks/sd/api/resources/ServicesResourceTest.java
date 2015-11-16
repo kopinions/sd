@@ -1,3 +1,5 @@
+package com.thoughtworks.sd.api.resources;
+
 import com.thoughtworks.sd.api.core.ServiceRepository;
 import com.thoughtworks.sd.api.impl.records.InMemoryServiceRepository;
 import org.glassfish.grizzly.http.util.HttpStatus;
@@ -79,5 +81,15 @@ public class ServicesResourceTest extends JerseyTest {
                 .request()
                 .get();
         assertThat(existedService.getStatus(), is(NOT_FOUND_404.getStatusCode()));
+    }
+
+
+    @Test
+    public void should_able_to_destroy_the_service() throws Exception {
+        Response existedService = target("/services")
+                .path("mysql")
+                .request()
+                .delete();
+        assertThat(existedService.getStatus(), is(HttpStatus.OK_200.getStatusCode()));
     }
 }
