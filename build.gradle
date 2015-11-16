@@ -1,5 +1,6 @@
 
 allprojects {
+    apply plugin: 'idea'
     apply plugin: 'java'
     ext {
         slf4j = '1.7.12'
