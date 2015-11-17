@@ -2,6 +2,7 @@ package com.thoughtworks.sd.scheduler;
 
 import com.google.protobuf.ByteString;
 import com.thoughtworks.sd.api.ApiModule;
+import com.thoughtworks.sd.api.ServiceServer;
 import com.thoughtworks.sd.api.MesosDriverHolder;
 import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
@@ -107,8 +108,8 @@ public class SDScheduler implements Scheduler {
         }
 
         MesosDriverHolder mesosDriverHolder = new MesosDriverHolder();
-        ApiModule apiModule = new ApiModule();
-        apiModule.run();
+        ServiceServer serviceServer = new ServiceServer(new ApiModule());
+        serviceServer.start();
 
         Scheduler scheduler = new SDScheduler(new OfferProcessor(), mesosDriverHolder);
 
