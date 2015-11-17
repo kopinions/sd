@@ -22,9 +22,10 @@ public class TemplatesResource {
     @Path("{tid}/instances")
     @Produces(MediaType.APPLICATION_JSON)
     public Response services(@PathParam("tid") String id,
+                             Map<String, Object> params,
                              @Context TemplateRepository templates) {
         return templates.findById(id)
-                .map(s -> created(Routing.service(s.instantiation())).build())
+                .map(s -> created(Routing.service(s.instantiation(params))).build())
                 .orElse(status(NOT_FOUND).build());
     }
 

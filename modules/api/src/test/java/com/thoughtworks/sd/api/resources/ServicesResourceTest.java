@@ -1,6 +1,8 @@
 package com.thoughtworks.sd.api.resources;
 
+import com.google.inject.Scopes;
 import com.thoughtworks.sd.api.core.ServiceRepository;
+import com.thoughtworks.sd.api.impl.MesosDns;
 import com.thoughtworks.sd.api.impl.records.InMemoryServiceRepository;
 import org.glassfish.grizzly.http.util.HttpStatus;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
@@ -10,11 +12,14 @@ import org.glassfish.jersey.test.TestProperties;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import javax.inject.Singleton;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Application;
 import javax.ws.rs.core.Response;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,6 +27,8 @@ import static org.glassfish.grizzly.http.util.HttpStatus.CREATED_201;
 import static org.glassfish.grizzly.http.util.HttpStatus.NOT_FOUND_404;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.when;
 
 
 @RunWith(MockitoJUnitRunner.class)
@@ -29,8 +36,6 @@ public class ServicesResourceTest extends JerseyTest {
 
     private Response createServiceResult;
     HashMap<Object, Object> serviceData = new HashMap<>();
-
-    ServiceRepository serviceRepository = new InMemoryServiceRepository();
 
     @Override
     protected Application configure() {
@@ -41,7 +46,16 @@ public class ServicesResourceTest extends JerseyTest {
                 .register(new AbstractBinder() {
                     @Override
                     protected void configure() {
-                        bind(serviceRepository).to(ServiceRepository.class);
+                        MesosDns mock = Mockito.mock(MesosDns.class);
+                        when(mock.getDnsInfo(any())).thenReturn(new HashMap<String, Object>(){{
+                            put("service", "mysql");
+                            put("host", "host");
+                            put("ip", "127.0.0.1");
+                            put("port", 1000);
+                        }});
+
+                        bind(mock).to(MesosDns.class);
+                        bind(InMemoryServiceRepository.class).to(ServiceRepository.class).in(Singleton.class);
                     }
                 });
     }

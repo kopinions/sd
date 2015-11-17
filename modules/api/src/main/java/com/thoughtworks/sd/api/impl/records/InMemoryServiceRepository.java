@@ -1,34 +1,25 @@
 package com.thoughtworks.sd.api.impl.records;
 
-import com.thoughtworks.sd.api.MesosDriverHolder;
 import com.thoughtworks.sd.api.core.Service;
 import com.thoughtworks.sd.api.core.ServiceRepository;
-import org.glassfish.jersey.filter.LoggingFilter;
+import com.thoughtworks.sd.api.impl.MesosDns;
 
 import javax.inject.Inject;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.Response;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.logging.Logger;
 
 public class InMemoryServiceRepository implements ServiceRepository {
     private Map<String, Service> services = new HashMap<>();
 
     @Inject
-    public String mesosDnsEntryPoint;
-
-    @Inject
-    public MesosDriverHolder driverHolder;
+    MesosDns mesosDns;
 
     @Override
-
     public Optional<Service> findByName(String name) {
-        Service value = services.get(name);
-        if ((!value.isRunning())) {
+        Service value = services.getOrDefault(name, null);
+        if ((value == null
+                || !value.isRunning())) {
             return Optional.empty();
         }
         return Optional.ofNullable(value);
@@ -36,14 +27,16 @@ public class InMemoryServiceRepository implements ServiceRepository {
 
     @Override
     public Service create(Map<String, Object> data) {
-        HashMap<String, Object> serviceData = new HashMap<>();
-        Map<String, Object> stringObjectMap = getServiceInfo(data);
-//        Map<String, Object> stringObjectMap = fakegetServiceInfo(data);
+        Map<String, Object> dnsInfo = mesosDns.getDnsInfo(data);
+        if (dnsInfo.isEmpty()) {
+            throw new RuntimeException("Unknow service find");
+        }
 
-        serviceData.put("port", stringObjectMap.get("port"));
-        serviceData.put("host", stringObjectMap.get("host"));
-        serviceData.put("ip", stringObjectMap.get("ip"));
-        serviceData.put("uri", "jdbc:mysql://" + stringObjectMap.get("host") + ":" + stringObjectMap.get("port") + "/mysql?" + "user=root&password=password");
+        HashMap<String, Object> serviceData = new HashMap<>();
+        serviceData.put("port", dnsInfo.get("port"));
+        serviceData.put("host", dnsInfo.get("host"));
+        serviceData.put("ip", dnsInfo.get("ip"));
+        serviceData.put("uri", "jdbc:mysql://" + dnsInfo.get("host") + ":" + dnsInfo.get("port") + "/mysql?" + "user=root&password=password");
 
         serviceData.put("credential", new HashMap<String, Object>() {{
             put("password", "password");
@@ -55,20 +48,4 @@ public class InMemoryServiceRepository implements ServiceRepository {
         return serviceRecord;
     }
 
-    private Map<String, Object> fakegetServiceInfo(Map<String, Object> data) {
-        return new HashMap<String, Object>(){{
-            put("port", 111);
-            put("host", "xxx");
-            put("ip", "xxx");
-        }};
-
-    }
-
-    private Map<String, Object> getServiceInfo(Map<String, Object> data) {
-        Client client = ClientBuilder.newClient();
-        client.register(new LoggingFilter(Logger.getLogger("INmeme"), true));
-        Response name = client.target(mesosDnsEntryPoint + "/v1/services/_" + String.valueOf(data.get("name")) + "._tcp.servicedashboard.mesos").request().get();
-        List<Map<String, Object>> bindings = name.readEntity(List.class);
-        return bindings.get(0);
-    }
 }

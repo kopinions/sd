@@ -1,12 +1,10 @@
 package com.thoughtworks.sd.scheduler;
 
-import com.thoughtworks.sd.api.core.ServiceRepository;
 import org.apache.mesos.Protos;
 import org.apache.mesos.SchedulerDriver;
 
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Future;
 
 import static java.util.Arrays.asList;
 

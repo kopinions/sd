@@ -15,8 +15,6 @@ import java.util.List;
 
 public class SDScheduler implements Scheduler {
     private OfferProcessor offerProcessor;
-    private MesosDriverHolder holder;
-    public static SchedulerDriver driver;
 
     public SDScheduler(OfferProcessor offerProcessor, MesosDriverHolder holder) {
         this.offerProcessor = offerProcessor;
@@ -92,10 +90,9 @@ public class SDScheduler implements Scheduler {
             System.out.println("Error");
             System.exit(1);
         }
-
         FrameworkInfo.Builder frameworkBuilder = FrameworkInfo.newBuilder()
-                .setUser("")
-                .setName("servicedashboard");
+                .setUser("root")
+                .setName("sd");
 
         if (System.getenv("MESOS_CHECKPOINT") != null) {
             System.out.println("Enabling checkpoint for the framework");
@@ -110,7 +107,7 @@ public class SDScheduler implements Scheduler {
         }
 
         MesosDriverHolder mesosDriverHolder = new MesosDriverHolder();
-        ApiModule apiModule = new ApiModule(mesosDriverHolder);
+        ApiModule apiModule = new ApiModule();
         apiModule.run();
 
         Scheduler scheduler = new SDScheduler(new OfferProcessor(), mesosDriverHolder);
@@ -140,7 +137,7 @@ public class SDScheduler implements Scheduler {
                     implicitAcknowledgements,
                     credentialBuilder.build());
         } else {
-            frameworkBuilder.setPrincipal("servicedashboard");
+            frameworkBuilder.setPrincipal("sd");
 
             driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0], implicitAcknowledgements);
         }

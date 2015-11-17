@@ -5,7 +5,6 @@ import com.thoughtworks.sd.api.core.ServiceRepository;
 import com.thoughtworks.sd.api.core.Template;
 import com.thoughtworks.sd.api.core.TemplateRepository;
 import com.thoughtworks.sd.api.impl.records.InMemoryServiceRepository;
-import org.glassfish.grizzly.http.util.HttpStatus;
 import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTest;
@@ -66,7 +65,7 @@ public class TemplatesResourceTest extends JerseyTest {
                             }
 
                             @Override
-                            public Service instantiation() {
+                            public Service instantiation(Map<String, Object> params) {
                                 return Mockito.mock(Service.class);
                             }
                         }
